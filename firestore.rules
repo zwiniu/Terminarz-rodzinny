@@ -4,6 +4,7 @@ service cloud.firestore {
   function signedIn(){return request.auth != null;}
   function member(fid){return signedIn() && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid));}
   function owner(fid){return signedIn() && get(/databases/$(database)/documents/families/$(fid)).data.ownerUid == request.auth.uid;}
+  function ownerAfter(fid){return signedIn() && getAfter(/databases/$(database)/documents/families/$(fid)).data.ownerUid == request.auth.uid;}
   match /families/{fid} {
    allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
    allow get: if signedIn();
@@ -11,7 +12,7 @@ service cloud.firestore {
    allow update, delete: if owner(fid);
    match /members/{uid} {
     allow get, list: if member(fid) || (signedIn() && owner(fid));
-    allow create: if signedIn() && uid == request.auth.uid && owner(fid);
+    allow create: if signedIn() && uid == request.auth.uid && (owner(fid) || ownerAfter(fid));
     allow update, delete: if owner(fid);
    }
    match /requests/{uid} {
@@ -20,9 +21,7 @@ service cloud.firestore {
     allow delete: if owner(fid);
     allow update: if false;
    }
-   match /data/{doc} {
-    allow read, write: if member(fid);
-   }
+   match /data/{doc} { allow read, write: if member(fid); }
   }
  }
 }
