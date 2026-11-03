@@ -1,0 +1,137 @@
+{
+  "project_info": {
+    "project_number": "369278454790",
+    "project_id": "rodzinne-wizyty",
+    "storage_bucket": "rodzinne-wizyty.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:369278454790:android:f1ccde81c6ef91ea568787",
+        "android_client_info": {
+          "package_name": "pl.rodzina.rachunki"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "369278454790-05hdl96p1ubqn3s95e5oppcdaqnuj0uj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4jkXXK5__JKDxqUyJexg9Bv3QgRQ9ezQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "369278454790-05hdl96p1ubqn3s95e5oppcdaqnuj0uj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:369278454790:android:91caaef433bdfd97568787",
+        "android_client_info": {
+          "package_name": "pl.rodzina.terminarz"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "369278454790-05hdl96p1ubqn3s95e5oppcdaqnuj0uj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4jkXXK5__JKDxqUyJexg9Bv3QgRQ9ezQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "369278454790-05hdl96p1ubqn3s95e5oppcdaqnuj0uj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:369278454790:android:192a719c2b45560f568787",
+        "android_client_info": {
+          "package_name": "pl.rodzina.wizyty"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "369278454790-n8eoc8kfsh34ibo40erpcb1c459li181.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "pl.rodzina.wizyty",
+            "certificate_hash": "eb8ea2584f45df04bf02f33bd5f02059c11c5a62"
+          }
+        },
+        {
+          "client_id": "369278454790-o3t0q38ngbnq8domiar6n86uq8dn5nbi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "pl.rodzina.wizyty",
+            "certificate_hash": "d9a36833a692bb57bbc3a1bc2b5ffdbe3e54ec86"
+          }
+        },
+        {
+          "client_id": "369278454790-paqs3gppvfj8btb1moi0l6h4vq3fd71p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "pl.rodzina.wizyty",
+            "certificate_hash": "0bc9a6b997d3f30dde0e5ff9fba65763be299b68"
+          }
+        },
+        {
+          "client_id": "369278454790-qdi99nh2eso6sr497ogk2n687m9blfe3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "pl.rodzina.wizyty",
+            "certificate_hash": "c474ce0f0090fe0b02f3fed95f413fae5594510c"
+          }
+        },
+        {
+          "client_id": "369278454790-shv5r6l5ikdu9jqo5op5bb3nkoq41hf3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "pl.rodzina.wizyty",
+            "certificate_hash": "b63fc9e66e98b17785a9f78cf2158eeffeb9d843"
+          }
+        },
+        {
+          "client_id": "369278454790-05hdl96p1ubqn3s95e5oppcdaqnuj0uj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4jkXXK5__JKDxqUyJexg9Bv3QgRQ9ezQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "369278454790-05hdl96p1ubqn3s95e5oppcdaqnuj0uj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
