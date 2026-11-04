@@ -5,7 +5,7 @@ service cloud.firestore {
   function member(fid){return signedIn() && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid));}
   function owner(fid){return signedIn() && get(/databases/$(database)/documents/families/$(fid)).data.ownerUid == request.auth.uid;}
   function ownerAfter(fid){return signedIn() && getAfter(/databases/$(database)/documents/families/$(fid)).data.ownerUid == request.auth.uid;}
-  match /families/{fid} {
+  match /userProfiles/{uid} {\n   allow read, create, update: if signedIn() && request.auth.uid == uid;\n   allow delete: if false;\n  }\n  match /families/{fid} {
    allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
    allow get: if signedIn();
    allow list: if false;
