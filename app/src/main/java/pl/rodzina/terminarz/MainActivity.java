@@ -15,7 +15,7 @@ import java.util.*;
 public class MainActivity extends Activity {
  private WebView web; private FirebaseAuth auth; private FirebaseFirestore db;
  private ListenerRegistration eventsListener, memberListener, requestListener;
- private String familyId="", eventsJson="[]", pendingReminderEventId="";
+ private String familyId="", eventsJson="[]";
  private final Handler handler=new Handler(Looper.getMainLooper());
  private static final String PREF="terminarz_family_";
  @Override public void onCreate(Bundle b){super.onCreate(b);
@@ -23,14 +23,13 @@ public class MainActivity extends Activity {
   getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
   auth=FirebaseAuth.getInstance();db=FirebaseFirestore.getInstance();
   web=new WebView(this);web.getSettings().setJavaScriptEnabled(true);web.getSettings().setDomStorageEnabled(true);
-  web.addJavascriptInterface(new Bridge(),"Android");web.setWebViewClient(new WebViewClient(){@Override public void onPageFinished(WebView v,String u){refreshAccount();if(!pendingReminderEventId.isEmpty()){js("openReminderEvent",pendingReminderEventId);pendingReminderEventId="";}}});
-  setContentView(web);pendingReminderEventId=getIntent().getStringExtra("reminder_event_id");web.loadUrl("file:///android_asset/index.html");
+  web.addJavascriptInterface(new Bridge(),"Android");web.setWebViewClient(new WebViewClient(){@Override public void onPageFinished(WebView v,String u){refreshAccount();}});
+  setContentView(web);web.loadUrl("file:///android_asset/index.html");
   createChannel();
   if(auth.getCurrentUser()!=null)restoreFamily();
   if(Build.VERSION.SDK_INT>=33&&checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED)
    requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"},55);
  }
- @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);String eventId=intent.getStringExtra("reminder_event_id");if(eventId!=null&&!eventId.isEmpty()){pendingReminderEventId=eventId;if(web!=null&&web.getProgress()>=100){js("openReminderEvent",eventId);pendingReminderEventId="";}}}
  private void createChannel(){if(Build.VERSION.SDK_INT>=26){NotificationChannel c=new NotificationChannel("family_events","Terminarz rodzinny",NotificationManager.IMPORTANCE_DEFAULT);c.setDescription("Przypomnienia o wydarzeniach rodzinnych");getSystemService(NotificationManager.class).createNotificationChannel(c);}}
  private void js(String name,String...args){StringBuilder s=new StringBuilder(name+"(");for(int i=0;i<args.length;i++){if(i>0)s.append(',');s.append(JSONObject.quote(args[i]));}s.append(");");handler.post(()->{if(web!=null)web.evaluateJavascript(s.toString(),null);});}
  private String uid(){return auth.getCurrentUser()==null?"":auth.getCurrentUser().getUid();}
