@@ -30,7 +30,8 @@ public class MainActivity extends Activity {
   if(Build.VERSION.SDK_INT>=33&&checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED)
    requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"},55);
  }
- @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);String eventId=intent.getStringExtra("reminder_event_id");if(eventId!=null&&!eventId.isEmpty()){pendingReminderEventId=eventId;if(web!=null&&web.getProgress()>=100){js("openReminderEvent",eventId);pendingReminderEventId="";}}}\n private void createChannel(){if(Build.VERSION.SDK_INT>=26){NotificationChannel c=new NotificationChannel("family_events","Terminarz rodzinny",NotificationManager.IMPORTANCE_DEFAULT);c.setDescription("Przypomnienia o wydarzeniach rodzinnych");getSystemService(NotificationManager.class).createNotificationChannel(c);}}
+ @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);String eventId=intent.getStringExtra("reminder_event_id");if(eventId!=null&&!eventId.isEmpty()){pendingReminderEventId=eventId;if(web!=null&&web.getProgress()>=100){js("openReminderEvent",eventId);pendingReminderEventId="";}}}
+ private void createChannel(){if(Build.VERSION.SDK_INT>=26){NotificationChannel c=new NotificationChannel("family_events","Terminarz rodzinny",NotificationManager.IMPORTANCE_DEFAULT);c.setDescription("Przypomnienia o wydarzeniach rodzinnych");getSystemService(NotificationManager.class).createNotificationChannel(c);}}
  private void js(String name,String...args){StringBuilder s=new StringBuilder(name+"(");for(int i=0;i<args.length;i++){if(i>0)s.append(',');s.append(JSONObject.quote(args[i]));}s.append(");");handler.post(()->{if(web!=null)web.evaluateJavascript(s.toString(),null);});}
  private String uid(){return auth.getCurrentUser()==null?"":auth.getCurrentUser().getUid();}
  private String prefKey(){return PREF+uid();}
