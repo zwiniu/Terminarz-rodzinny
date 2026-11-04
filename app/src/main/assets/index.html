@@ -40,9 +40,9 @@ function showSettings(){if(active)showPage('settingsPage')}
 function goHome(){if(active)showPage('homePage')}
 function openNewEvent(){if(!active)return;resetForm();showPage('eventPage');window.scrollTo(0,0)}
 function showWorkspace(){if(active)$('workspace').classList.remove('hidden')}
-function pendingApproval(){$('familySetup').classList.add('hidden');$('family').classList.add('hidden');$('eventForm').classList.add('hidden');$('requestsCard').classList.add('hidden');$('pending').classList.remove('hidden');$('events').textContent='Oczekiwanie na zatwierdzenie prośby.';}
+function pendingApproval(){$('familySetup').classList.add('hidden');$('family').classList.add('hidden');$('requestsCard').classList.add('hidden');$('homeFamilyMessage').classList.add('hidden');$('addEventBtn').classList.add('hidden');$('pending').classList.remove('hidden');showSettings();$('events').textContent='Oczekiwanie na zatwierdzenie prośby.';}
 function cloudNotice(s){$('notice').textContent=s}
-function cloudEvents(json){try{events=JSON.parse(json||'[]')}catch(e){events=[]}render()}
+function cloudEvents(json){try{events=JSON.parse(json||'[]')}catch(e){events=[]}render();highlightReminderEvent()}
 function cloudRequests(json){let req=[];try{req=JSON.parse(json)}catch(e){}$('requests').innerHTML='';$('requestsCard').classList.toggle('hidden',!req.length);req.forEach(r=>{let d=document.createElement('div');d.className='request';let t=document.createElement('span');t.textContent=r.email||'Nowy użytkownik';let b=document.createElement('button');b.textContent='Akceptuj';b.onclick=()=>Android.approve(r.uid);d.append(t,b);$('requests').append(d)})}
 function dayName(d){return new Intl.DateTimeFormat('pl-PL',{weekday:'long'}).format(new Date(d+'T12:00:00'))}
 function render(){events.sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));$('count').textContent=events.length+' wydarzeń';$('events').className=events.length?'':'empty';$('events').innerHTML='';if(!events.length){$('events').textContent='Nie ma jeszcze wydarzeń. Dodaj pierwsze, klikając formularz powyżej.';return}
@@ -56,6 +56,6 @@ function editEvent(id){let e=events.find(x=>x.id===id);if(!e)return;editId=id;sh
 function cancelEdit(){resetForm();goHome()}
 function deleteEvent(id){if(!confirm('Usunąć to wydarzenie?'))return;events=events.filter(e=>e.id!==id);Android.saveEvents(JSON.stringify(events));render()}
 function copyCode(){Android.copy(Android.getFamilyCode())}
-function openReminderEvent(id){goHome();const el=[...document.querySelectorAll('[data-event-id]')].find(x=>x.dataset.eventId===id);if(el){el.style.background='#e8f0e8';el.style.borderRadius='12px';el.style.padding='14px';el.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>{el.style.background='';el.style.padding='';},5000);}}
+let pendingReminderId='';function openReminderEvent(id){pendingReminderId=id;goHome();highlightReminderEvent()}function highlightReminderEvent(){if(!pendingReminderId)return;const el=[...document.querySelectorAll('[data-event-id]')].find(x=>x.dataset.eventId===pendingReminderId);if(!el)return;pendingReminderId='';el.style.background='#e8f0e8';el.style.borderRadius='12px';el.style.padding='14px';el.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>{el.style.background='';el.style.padding='';},5000);}
 window.addEventListener('load',()=>{let e=Android.getEmail();if(e)accountState(e,Android.getFamilyCode());let j=Android.getEvents();if(j)cloudEvents(j);});
 </script></body></html>
