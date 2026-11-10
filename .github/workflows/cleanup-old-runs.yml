@@ -1,0 +1,71 @@
+name: Clean old GitHub Actions runs
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview only; set false to delete old runs"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    name: Keep the latest 10 successful runs per workflow, branch and event
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preview or delete old completed runs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const dryRun = ${{ inputs.dry_run }};
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              { owner, repo, per_page: 100 }
+            );
+
+            // Keep separate histories for each workflow, branch and trigger type.
+            const groups = new Map();
+            for (const run of runs) {
+              if (run.status !== "completed" || run.path === ".github/workflows/cleanup-old-runs.yml") continue;
+              const key = [run.workflow_id, run.head_branch, run.event].join("|");
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key).push(run);
+            }
+
+            let kept = 0;
+            let deleted = 0;
+            for (const [key, workflowRuns] of groups) {
+              workflowRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              const successful = workflowRuns.filter(run => run.conclusion === "success");
+              const keepIds = new Set(successful.slice(0, 10).map(run => run.id));
+
+              if (successful.length === 0) {
+                core.info(`No successful runs for ${key}; keeping all ${workflowRuns.length} completed runs for safety.`);
+                continue;
+              }
+
+              kept += keepIds.size;
+              for (const run of workflowRuns) {
+                if (keepIds.has(run.id)) {
+                  core.info(`KEEP: #${run.run_number} — ${run.name} — ${run.head_branch} — ${run.event}`);
+                  continue;
+                }
+                if (dryRun) {
+                  core.info(`WOULD DELETE: #${run.run_number} — ${run.name} — ${run.head_branch} — ${run.event} (${run.conclusion})`);
+                } else {
+                  await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id });
+                  deleted++;
+                  core.info(`DELETED: #${run.run_number} — ${run.name} — ${run.head_branch} — ${run.event} (${run.conclusion})`);
+                }
+              }
+            }
+
+            core.info(`SUMMARY: successful runs retained=${kept}; runs deleted=${deleted}; dry_run=${dryRun}`);
+            if (dryRun) core.info("PREVIEW ONLY: no runs were deleted. Review the log, then run again with dry_run=false to apply.");
