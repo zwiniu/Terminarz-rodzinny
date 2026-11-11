@@ -1,9 +1,6 @@
 name: Safe APK artifact cleanup
 
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/cleanup-old-runs.yml']
   schedule:
     - cron: '25 2 * * *'
   workflow_dispatch:
