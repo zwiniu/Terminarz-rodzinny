@@ -1,71 +1,96 @@
-name: Clean old GitHub Actions runs
+name: Safe APK artifact cleanup
 
 on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/cleanup-old-runs.yml']
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Preview only; set false to delete old runs"
-        required: true
+        description: 'Preview only (recommended for verification)'
         type: boolean
+        required: true
         default: true
 
 permissions:
   actions: write
-  contents: read
+
+concurrency:
+  group: apk-artifact-cleanup
+  cancel-in-progress: false
 
 jobs:
   cleanup:
-    name: Keep the latest 10 successful runs per workflow, branch and event
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Preview or delete old completed runs
-        uses: actions/github-script@v7
+      - name: Preview APK retention (deletion disabled until verified)
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
         with:
           script: |
-            const dryRun = ${{ inputs.dry_run }};
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const runs = await github.paginate(
-              github.rest.actions.listWorkflowRunsForRepo,
-              { owner, repo, per_page: 100 }
-            );
-
-            // Keep separate histories for each workflow, branch and trigger type.
-            const groups = new Map();
-            for (const run of runs) {
-              if (run.status !== "completed" || run.path === ".github/workflows/cleanup-old-runs.yml") continue;
-              const key = [run.workflow_id, run.head_branch, run.event].join("|");
-              if (!groups.has(key)) groups.set(key, []);
-              groups.get(key).push(run);
-            }
-
-            let kept = 0;
-            let deleted = 0;
-            for (const [key, workflowRuns] of groups) {
-              workflowRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-              const successful = workflowRuns.filter(run => run.conclusion === "success");
-              const keepIds = new Set(successful.slice(0, 10).map(run => run.id));
-
-              if (successful.length === 0) {
-                core.info(`No successful runs for ${key}; keeping all ${workflowRuns.length} completed runs for safety.`);
-                continue;
+            async function cleanup({github, context, core, dryRun, allowed}) {
+              const scope = context.repo;
+              const api = github.rest.actions;
+              const isApk = a => allowed.some(pattern => new RegExp(pattern).test(a.name));
+              const available = a => !a.expired && a.size_in_bytes > 0 && Date.parse(a.expires_at) > Date.now();
+              const all = await github.paginate(api.listArtifactsForRepo, {...scope, per_page: 100});
+              const artifacts = all.filter(a => isApk(a) && available(a));
+              const byRun = new Map();
+              for (const a of artifacts) {
+                const id = a.workflow_run?.id;
+                if (!id) throw new Error('Artifact without workflow run; aborting.');
+                if (!byRun.has(id)) byRun.set(id, []);
+                byRun.get(id).push(a);
               }
-
-              kept += keepIds.size;
-              for (const run of workflowRuns) {
-                if (keepIds.has(run.id)) {
-                  core.info(`KEEP: #${run.run_number} — ${run.name} — ${run.head_branch} — ${run.event}`);
-                  continue;
-                }
-                if (dryRun) {
-                  core.info(`WOULD DELETE: #${run.run_number} — ${run.name} — ${run.head_branch} — ${run.event} (${run.conclusion})`);
-                } else {
-                  await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id });
-                  deleted++;
-                  core.info(`DELETED: #${run.run_number} — ${run.name} — ${run.head_branch} — ${run.event} (${run.conclusion})`);
+              const successful = [];
+              for (const [id, items] of byRun) {
+                const {data: run} = await api.getWorkflowRun({...scope, run_id: id});
+                // Never count an artifact left over from an earlier attempt of a rerun.
+                const current = items.filter(a => Date.parse(a.created_at) >= Date.parse(run.run_started_at));
+                if (run.status === 'completed' && run.conclusion === 'success' && current.length) {
+                  successful.push({run, items: current});
                 }
               }
+              successful.sort((a,b) => Date.parse(b.run.created_at)-Date.parse(a.run.created_at) || b.run.id-a.run.id);
+              const keep = successful.slice(0, 10);
+              const older = successful.slice(10);
+              const planned = older.flatMap(x => x.items.map(a => ({artifact: a, run: x.run})));
+              const rows = [];
+              for (const a of all) {
+                const candidate = planned.find(x => x.artifact.id === a.id);
+                rows.push([candidate ? 'WOULD DELETE' : 'KEEP', String(a.workflow_run?.id ?? ''), String(a.id), a.name]);
+                core.info(`${candidate ? 'WOULD DELETE' : 'KEEP'} artifact=${a.id} run=${a.workflow_run?.id} name=${a.name}`);
+              }
+              await core.summary.addHeading('APK artifact cleanup').addRaw(`Dry run: ${dryRun}. Successful APK builds retained: ${keep.length}. Planned APK deletions: ${planned.length}.\n`).addTable([['Decision','Run ID','Artifact ID','Name'],...rows]).write();
+              if (dryRun || !planned.length) return {kept: keep.length, planned: planned.length, deleted: 0};
+              // Any active build blocks deletion for the entire repository.
+              const paths = new Set(successful.map(x => x.run.path));
+              async function assertIdle() {
+                const runs = await github.paginate(api.listWorkflowRunsForRepo, {...scope, per_page: 100});
+                if (runs.some(r => paths.has(r.path) && r.status !== 'completed')) throw new Error('Active APK build detected; no further deletion.');
+              }
+              await assertIdle();
+              let deleted = 0;
+              for (const {artifact, run} of planned) {
+                await assertIdle();
+                const {data: current} = await api.getWorkflowRun({...scope, run_id: run.id});
+                if (current.status !== 'completed' || current.conclusion !== 'success' || current.run_attempt !== run.run_attempt) throw new Error('Candidate run changed; aborting.');
+                // Recheck all ten newer builds and their APKs immediately before each DELETE.
+                for (const witness of keep) {
+                  if (Date.parse(witness.run.created_at) <= Date.parse(run.created_at)) throw new Error('Not ten strictly newer builds.');
+                  const {data: freshRun} = await api.getWorkflowRun({...scope, run_id: witness.run.id});
+                  if (freshRun.status !== 'completed' || freshRun.conclusion !== 'success' || freshRun.run_attempt !== witness.run.run_attempt) throw new Error('Protected build changed; aborting.');
+                  const {data: freshApk} = await api.getArtifact({...scope, artifact_id: witness.items[0].id});
+                  if (!available(freshApk) || !isApk(freshApk) || Date.parse(freshApk.expires_at) < Date.now()+3600000) throw new Error('Protected APK missing or near expiry; aborting.');
+                }
+                const {data: fresh} = await api.getArtifact({...scope, artifact_id: artifact.id});
+                if (!isApk(fresh) || fresh.workflow_run?.id !== run.id || fresh.name !== artifact.name) throw new Error('Candidate artifact changed; aborting.');
+                await api.deleteArtifact({...scope, artifact_id: artifact.id});
+                deleted++;
+                core.info(`DELETED artifact=${artifact.id} run=${run.id} name=${artifact.name}`);
+              }
+              await core.summary.addRaw(`\nDeleted APK artifacts: ${deleted}. All run logs, diagnostics and other resources retained.\n`).write();
+              return {kept: keep.length, planned: planned.length, deleted};
             }
-
-            core.info(`SUMMARY: successful runs retained=${kept}; runs deleted=${deleted}; dry_run=${dryRun}`);
-            if (dryRun) core.info("PREVIEW ONLY: no runs were deleted. Review the log, then run again with dry_run=false to apply.");
+            
+            await cleanup({github, context, core, dryRun: true, allowed: ["^terminarz-rodzinny-release$","^terminarz-rodzinny-debug$"]});
