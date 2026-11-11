@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths: ['.github/workflows/cleanup-old-runs.yml']
+  schedule:
+    - cron: '25 2 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -22,9 +24,9 @@ concurrency:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Preview APK retention (deletion disabled until verified)
+      - name: Keep 10 successful APK builds; delete only older APK artifacts
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
         with:
           script: |
@@ -93,4 +95,17 @@ jobs:
               return {kept: keep.length, planned: planned.length, deleted};
             }
             
-            await cleanup({github, context, core, dryRun: true, allowed: ["^terminarz-rodzinny-release$","^terminarz-rodzinny-debug$"]});
+            const dryRun = context.eventName === 'workflow_dispatch' ? context.payload.inputs?.dry_run !== 'false' : false;
+            if (!dryRun) {
+              let idle = false;
+              for (let attempt = 0; attempt < 60; attempt++) {
+                const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {...context.repo, per_page: 100});
+                const active = runs.filter(r => r.id !== context.runId && r.path !== '.github/workflows/cleanup-old-runs.yml' && r.status !== 'completed');
+                if (!active.length) { idle = true; break; }
+                core.info('Waiting for active builds; artifacts are untouched.');
+                await new Promise(resolve => setTimeout(resolve, 15000));
+              }
+              if (!idle) throw new Error('Builds still active; skipping cleanup safely.');
+            }
+            
+            await cleanup({github, context, core, dryRun, allowed: ["^terminarz-rodzinny-release$","^terminarz-rodzinny-debug$"]});
